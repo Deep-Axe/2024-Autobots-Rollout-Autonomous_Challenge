@@ -40,7 +40,7 @@ SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
-THRESHOLD_OBSTACLE_VERTICAL = 1.0
+THRESHOLD_OBSTACLE_VERTICAL = 0.25
 THRESHOLD_OBSTACLE_HORIZONTAL = 0.25
 
 
@@ -142,11 +142,12 @@ class LineFollower(Node):
 			turn = deviation / half_width
 
 		if (self.traffic_status.stop_sign is True):
-			speed = SPEED_MIN
+			#speed = SPEED_MIN
 			print("stop sign detected")
 
 		if self.ramp_detected is True:
 			# TODO: participants need to decide action on detection of ramp/bridge.
+			speed = SPEED_50_PERCENT
 			print("ramp/bridge detected")
 
 		if self.obstacle_detected is True:
@@ -176,7 +177,19 @@ class LineFollower(Node):
 	"""
 	def lidar_callback(self, message):
 		# TODO: participants need to implement logic for detection of ramps and obstacles.
+        
+		RAMP_ANGLE_THRESHOLD = 0.2
 
+		range_1=message.ranges
+		range_difference =  [range_1[i+1] - range_1[i] for i in range(len(range_1) - 1)]
+        
+
+		for diff in range_difference:
+			if diff > RAMP_ANGLE_THRESHOLD:
+				self.ramp_detected = True
+				break
+
+		
 		shield_vertical = 4
 		shield_horizontal = 1
 		theta = math.atan(shield_vertical / shield_horizontal)
