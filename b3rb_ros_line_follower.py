@@ -1,18 +1,6 @@
-# Copyright 2024 NXP
-
-# Copyright 2016 Open Source Robotics Foundation, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#20 -> car width
+#72 -> track width without lines
+#80 -> track width
 
 import rclpy
 from rclpy.node import Node
@@ -24,6 +12,9 @@ import math
 from synapse_msgs.msg import EdgeVectors
 from synapse_msgs.msg import TrafficStatus
 from sensor_msgs.msg import LaserScan
+
+#OURS
+from std_msgs.msg import Int16
 
 QOS_PROFILE_DEFAULT = 10
 
@@ -52,6 +43,13 @@ class LineFollower(Node):
 	"""
 	def __init__(self):
 		super().__init__('line_follower')
+
+		# TEMP PUBLISHER TO ANALYSE DATA
+		self.publisher_temp = self.create_publisher(
+			Int16,
+			'/temp',
+			QOS_PROFILE_DEFAULT)
+
 
 		# Subscription for edge vectors.
 		self.subscription_vectors = self.create_subscription(
@@ -126,12 +124,15 @@ class LineFollower(Node):
 
 		# NOTE: participants may improve algorithm for line follower.
 		if (vectors.vector_count == 0):  # none.
-			pass
+			speed = SPEED_25_PERCENT
+			# maybe turn = prev turn
 
 		if (vectors.vector_count == 1):  # curve.
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
 			turn = deviation / vectors.image_width
+			speed = speed * (math.cos(turn) **(1/3))
+			#adjust speed
 
 		if (vectors.vector_count == 2):  # straight.
 			# Calculate the middle point of the x-components of the vectors.
@@ -147,7 +148,8 @@ class LineFollower(Node):
 
 		if self.ramp_detected is True:
 			# TODO: participants need to decide action on detection of ramp/bridge.
-			speed = SPEED_50_PERCENT
+			# speed = SPEED_50_PERCENT
+			'''change it to reduce speed close to the ramp'''
 			print("ramp/bridge detected")
 
 		if self.obstacle_detected is True:
@@ -155,6 +157,11 @@ class LineFollower(Node):
 			print("obstacle detected")
 
 		self.rover_move_manual_mode(speed, turn)
+
+		#COMMS
+		msgTemp = Int16()
+		msgTemp.data = int(speed*10)
+		self.publisher_temp.publish(msgTemp)
 
 	""" Updates instance member with traffic status message received from /traffic_status.
 
@@ -183,7 +190,7 @@ class LineFollower(Node):
 		range_1=message.ranges
 		range_difference =  [range_1[i+1] - range_1[i] for i in range(len(range_1) - 1)]
         
-
+		#Can also be for obsracles -> need to differentiate between them smhow
 		for diff in range_difference:
 			if diff > RAMP_ANGLE_THRESHOLD:
 				self.ramp_detected = True
@@ -234,9 +241,6 @@ def main(args=None):
 
 	rclpy.spin(line_follower)
 
-	# Destroy the node explicitly
-	# (optional - otherwise it will be done automatically
-	# when the garbage collector destroys the node object)
 	line_follower.destroy_node()
 	rclpy.shutdown()
 
