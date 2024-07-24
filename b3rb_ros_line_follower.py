@@ -51,7 +51,7 @@ class LineFollower(Node):
 		super().__init__('line_follower')
 
 		self.status = [0, 0, 0]
-		self.prevSpeed = 0
+		self.prevSpeed, self.prevTurn = 0, 0
 		self.min, self.max = 10, 0
 
 		# TEMP PUBLISHER TO ANALYSE DATA
@@ -143,22 +143,73 @@ class LineFollower(Node):
 		# NOTE: participants may improve algorithm for line follower.
 		if (vectors.vector_count == 0):  # none.
 			speed = SPEED_25_PERCENT
-			# maybe turn = prev turn
+			turn = self.prevTurn*0.95
 
 		if (vectors.vector_count == 1):  # curve.
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
-			turn = deviation / vectors.image_width
-			speed = speed * (math.cos(turn) **(1/2))
+			turn = deviation * 2 / vectors.image_width
+			turn = self.prevTurn*0.9 + turn*0.1
+			# approximating the mid point to keep it inside track
+			# x1, x2 = vectors.vector_1[0].x, vectors.vector_1[1].x
+			# y1, y2 = vectors.vector_1[0].y, vectors.vector_1[1].y
+			# xm = (x1 + x2) / 2
+
+
+
+			# # Calculate slope of the original line
+			# if x2 == x1:
+			# 	# Vertical line, perpendicular is horizontal
+			# 	m_perpendicular = 0
+			# 	distance = 40 / half_width
+			# 	x_offset = distance
+			# elif y2 == y1:
+			# 	# Horizontal line, perpendicular is vertical
+			# 	m_perpendicular = float('inf')
+			# 	x_offset = 0
+			# else:
+			# 	# Calculate slope of the perpendicular line
+			# 	m_perpendicular = -(x2 - x1) / (y2 - y1)
+
+			# 	distance = 40*half_width / np.cos(math.atan(m_perpendicular))
+
+			# 	# Calculate x offset using the distance along the perpendicular
+			# 	denominator = math.sqrt(m_perpendicular**2 + 1)
+			# 	x_offset = distance / denominator
+
+			# # Calculate possible x-coordinates
+			# x_pos = xm + x_offset
+			# x_neg = xm - x_offset
+
+			# deviation = half_width - x_pos
+			# print(f"turn could be {deviation/half_width}")
+			# deviation = half_width - x_neg
+			# print(f"turn could be {deviation/half_width}")
+
+			# if np.abs(half_width - x_pos) < np.abs(half_width - x_neg):
+			# 	deviation = half_width - x_pos
+			# 	#print(f"turn could be {deviation/half_width}")
+			# else:
+			# 	deviation = half_width - x_neg
+			# 	#print(f"turn could be {deviation/half_width}")
+			# print(f"Deviation {deviation}")
+			# turn2 = deviation / half_width
+
+			# turn = turn1*0.7 + turn2*0.3
+			# print(f"turn 1 = {turn1}, turn 2 = {turn2} and turn = {turn}")
+			# speed = speed * (math.cos(turn) **(1/2))
 
 		if (vectors.vector_count == 2):  # straight.
 			# Calculate the middle point of the x-components of the vectors.
 			middle_x_left = (vectors.vector_1[0].x + vectors.vector_1[1].x) / 2
 			middle_x_right = (vectors.vector_2[0].x + vectors.vector_2[1].x) / 2
 			middle_x = (middle_x_left + middle_x_right) / 2
+
 			deviation = half_width - middle_x
 			turn = deviation / half_width
+		
 			speed = speed * (math.cos(turn) **(1/2))
+			
 
 		if (self.traffic_status.stop_sign is True):
 			#speed = SPEED_MIN
@@ -186,7 +237,7 @@ class LineFollower(Node):
 			speed = 0.995*self.prevSpeed + 0.005*speed
 
 		self.prevSpeed = speed
-		print(speed)
+		self.prevTurn = turn
 		self.rover_move_manual_mode(speed, turn)
 
 		#COMMS
@@ -290,8 +341,6 @@ class LineFollower(Node):
 		t4 = +1.0 - 2.0 * (y * y + z * z)
 		yaw_z = np.arctan2(t3, t4)
 		self.status[2] = yaw_z
-		if Message.pose.pose.position.z != 0:
-			print(Message.pose.pose.position.z)
 
 def main(args=None):
 	rclpy.init(args=args)
