@@ -1,19 +1,3 @@
-# Copyright 2024 NXP
-
-# Copyright 2016 Open Source Robotics Foundation, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import rclpy
 from rclpy.node import Node
 from synapse_msgs.msg import TrafficStatus
@@ -25,6 +9,7 @@ from sensor_msgs.msg import CompressedImage
 
 QOS_PROFILE_DEFAULT = 10
 
+# from std_msgs.msg import Int16
 
 class ObjectRecognizer(Node):
 	""" Initializes object recognizer node with the required publishers and subscriptions.
@@ -47,6 +32,12 @@ class ObjectRecognizer(Node):
 			TrafficStatus,
 			'/traffic_status',
 			QOS_PROFILE_DEFAULT)
+		
+		# TEMP PUBLISHER TO ANALYSE DATA
+		# self.publisher_temp = self.create_publisher(
+		# 	Int16,
+		# 	'/temp',
+		# 	QOS_PROFILE_DEFAULT)
 
 	""" Analyzes the image received from /camera/image_raw/compressed to detect traffic signs.
 		Publishes the existence of traffic signs in the image on the /traffic_status topic.
@@ -61,6 +52,10 @@ class ObjectRecognizer(Node):
 		# Convert message to an n-dimensional numpy array representation of image.
 		np_arr = np.frombuffer(message.data, np.uint8)
 		image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+		# msgTemp = Int16()
+		# msgTemp.data = len(image[0][0]) #240 * 320
+		# self.publisher_temp.publish(msgTemp)
 
 		traffic_status_message = TrafficStatus()
 
