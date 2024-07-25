@@ -61,7 +61,7 @@ class LineFollower(Node):
 			QOS_PROFILE_DEFAULT)
 
 		# Subscription to get Pose
-		self.subscription_lidar = self.create_subscription(
+		self.subscription_pose = self.create_subscription(
 			PoseWithCovarianceStamped,
 			'/pose',
 			self.pose_callback,

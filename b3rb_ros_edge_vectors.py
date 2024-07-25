@@ -50,13 +50,13 @@ class EdgeVectorsPublisher(Node):
 		# Publisher for thresh image (for debug purposes).
 		self.publisher_thresh_image = self.create_publisher(
 			CompressedImage,
-			"/debug_images/thresh_image",
+			"camera/debug_images/thresh_image",
 			QOS_PROFILE_DEFAULT)
 
 		# Publisher for vector image (for debug purposes).
 		self.publisher_vector_image = self.create_publisher(
 			CompressedImage,
-			"/debug_images/vector_image",
+			"camera/debug_images/vector_image",
 			QOS_PROFILE_DEFAULT)
 
 		self.image_height = 0
