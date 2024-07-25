@@ -36,7 +36,7 @@ SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
 THRESHOLD_OBSTACLE_VERTICAL = 0.25
 THRESHOLD_OBSTACLE_HORIZONTAL = 0.25
-THRESHOLD_RAMP_MIN = 0.5
+THRESHOLD_RAMP_MIN = 0.6
 THRESHOLD_RAMP_MAX = 1.2
 
 #Min - 0.6179950833320618 and Max - 0.9302666783332825
@@ -144,18 +144,18 @@ class LineFollower(Node):
 		if (vectors.vector_count == 0):  # none.
 			speed = SPEED_25_PERCENT
 			turn = self.prevTurn*0.95
+			print("ZERO (0) Vectors formed")
 
 		if (vectors.vector_count == 1):  # curve.
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
 			turn = deviation * 2 / vectors.image_width
 			turn = self.prevTurn*0.9 + turn*0.1
+			print("ONE (1) Vector formed")
 			# approximating the mid point to keep it inside track
 			# x1, x2 = vectors.vector_1[0].x, vectors.vector_1[1].x
 			# y1, y2 = vectors.vector_1[0].y, vectors.vector_1[1].y
 			# xm = (x1 + x2) / 2
-
-
 
 			# # Calculate slope of the original line
 			# if x2 == x1:
@@ -197,7 +197,7 @@ class LineFollower(Node):
 
 			# turn = turn1*0.7 + turn2*0.3
 			# print(f"turn 1 = {turn1}, turn 2 = {turn2} and turn = {turn}")
-			# speed = speed * (math.cos(turn) **(1/2))
+			speed = speed * (np.abs(math.cos(turn)) **(1/2))
 
 		if (vectors.vector_count == 2):  # straight.
 			# Calculate the middle point of the x-components of the vectors.
@@ -208,6 +208,8 @@ class LineFollower(Node):
 			deviation = half_width - middle_x
 			turn = deviation / half_width
 		
+			turn = turn*0.8 + self.prevTurn*0.2
+
 			speed = speed * (math.cos(turn) **(1/2))
 			
 
@@ -233,7 +235,7 @@ class LineFollower(Node):
         #     delta = -1*delta + np.pi
 		#if speed > self.prevSpeed:
 
-		if self.prevSpeed < 0.6 and self.prevSpeed > 0.4 and self.ramp_detected is False:
+		if self.prevSpeed < 0.6 and speed > 0.4 and self.ramp_detected is False:
 			speed = 0.995*self.prevSpeed + 0.005*speed
 
 		self.prevSpeed = speed
@@ -319,11 +321,11 @@ class LineFollower(Node):
 		for i in range(len(front_ranges)):
 			if (front_ranges[i] < THRESHOLD_RAMP_MAX and front_ranges[i] > THRESHOLD_RAMP_MIN):
 				self.ramp_detected = True
-				# if front_ranges[i] < self.min:
-				# 	self.min = front_ranges[i]
-				# elif front_ranges[i] > self.max:
-				# 	self.max = front_ranges[i]
-				# print(f"Min - {self.min} and Max - {self.max}")
+				if front_ranges[i] < self.min:
+					self.min = front_ranges[i]
+				elif front_ranges[i] > self.max:
+					self.max = front_ranges[i]
+				print(f"Min - {self.min} and Max - {self.max} and  current {front_ranges[i]}")
 				return
 
 			angle += message.angle_increment
