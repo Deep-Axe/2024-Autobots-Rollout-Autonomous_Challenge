@@ -21,7 +21,7 @@ RED_COLOR = (0, 0, 255)
 BLUE_COLOR = (255, 0, 0)
 GREEN_COLOR = (0, 255, 0)
 
-VECTOR_IMAGE_HEIGHT_PERCENTAGE = 0.40  # Bottom portion of image to be analyzed for vectors.
+VECTOR_IMAGE_HEIGHT_PERCENTAGE = 0.325  # Bottom portion of image to be analyzed for vectors.
 VECTOR_MAGNITUDE_MINIMUM = 2.5
 
 
@@ -50,13 +50,13 @@ class EdgeVectorsPublisher(Node):
 		# Publisher for thresh image (for debug purposes).
 		self.publisher_thresh_image = self.create_publisher(
 			CompressedImage,
-			"camera/debug_images/thresh_image",
+			"debug_images/thresh_image",
 			QOS_PROFILE_DEFAULT)
 
 		# Publisher for vector image (for debug purposes).
 		self.publisher_vector_image = self.create_publisher(
 			CompressedImage,
-			"camera/debug_images/vector_image",
+			"debug_images/vector_image",
 			QOS_PROFILE_DEFAULT)
 
 		self.image_height = 0
@@ -239,7 +239,6 @@ class EdgeVectorsPublisher(Node):
 			vectors_message.vector_2[1].y = float(vectors[1][1][1])
 			vectors_message.vector_count += 1
 		self.publisher_edge_vectors.publish(vectors_message)
-
 		return
 
 

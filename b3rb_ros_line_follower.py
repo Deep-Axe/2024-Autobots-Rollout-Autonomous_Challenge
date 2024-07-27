@@ -14,7 +14,6 @@ from synapse_msgs.msg import TrafficStatus
 from sensor_msgs.msg import LaserScan
 
 #OURS
-from std_msgs.msg import Int16
 import numpy as np
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
@@ -29,14 +28,14 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 1.25
+SPEED_MAX = 1.4
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
 THRESHOLD_OBSTACLE_VERTICAL = 0.25
 THRESHOLD_OBSTACLE_HORIZONTAL = 0.25
-THRESHOLD_RAMP_MIN = 0.6
+THRESHOLD_RAMP_MIN = 0.73
 THRESHOLD_RAMP_MAX = 1.2
 
 #Min - 0.6179950833320618 and Max - 0.9302666783332825
@@ -51,14 +50,8 @@ class LineFollower(Node):
 		super().__init__('line_follower')
 
 		self.status = [0, 0, 0]
-		self.prevSpeed, self.prevTurn = 0, 0
+		self.prevSpeed, self.prevTurn = 0.75, 0
 		self.min, self.max = 10, 0
-
-		# TEMP PUBLISHER TO ANALYSE DATA
-		self.publisher_temp = self.create_publisher(
-			Int16,
-			'/temp',
-			QOS_PROFILE_DEFAULT)
 
 		# Subscription to get Pose
 		self.subscription_pose = self.create_subscription(
@@ -66,7 +59,6 @@ class LineFollower(Node):
 			'/pose',
 			self.pose_callback,
 			QOS_PROFILE_DEFAULT)
-
 
 		# Subscription for edge vectors.
 		self.subscription_vectors = self.create_subscription(
@@ -133,6 +125,7 @@ class LineFollower(Node):
 		Returns:
 			None
 	"""
+
 	def edge_vectors_callback(self, message):
 		speed = SPEED_MAX
 		turn = TURN_MIN
@@ -142,62 +135,19 @@ class LineFollower(Node):
 
 		# NOTE: participants may improve algorithm for line follower.
 		if (vectors.vector_count == 0):  # none.
-			speed = SPEED_25_PERCENT
+			speed = SPEED_50_PERCENT
 			turn = self.prevTurn*0.95
-			print("ZERO (0) Vectors formed")
+			#print("ZERO (0) Vectors formed")
 
 		if (vectors.vector_count == 1):  # curve.
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
 			turn = deviation * 2 / vectors.image_width
 			turn = self.prevTurn*0.9 + turn*0.1
-			print("ONE (1) Vector formed")
-			# approximating the mid point to keep it inside track
-			# x1, x2 = vectors.vector_1[0].x, vectors.vector_1[1].x
-			# y1, y2 = vectors.vector_1[0].y, vectors.vector_1[1].y
-			# xm = (x1 + x2) / 2
-
-			# # Calculate slope of the original line
-			# if x2 == x1:
-			# 	# Vertical line, perpendicular is horizontal
-			# 	m_perpendicular = 0
-			# 	distance = 40 / half_width
-			# 	x_offset = distance
-			# elif y2 == y1:
-			# 	# Horizontal line, perpendicular is vertical
-			# 	m_perpendicular = float('inf')
-			# 	x_offset = 0
-			# else:
-			# 	# Calculate slope of the perpendicular line
-			# 	m_perpendicular = -(x2 - x1) / (y2 - y1)
-
-			# 	distance = 40*half_width / np.cos(math.atan(m_perpendicular))
-
-			# 	# Calculate x offset using the distance along the perpendicular
-			# 	denominator = math.sqrt(m_perpendicular**2 + 1)
-			# 	x_offset = distance / denominator
-
-			# # Calculate possible x-coordinates
-			# x_pos = xm + x_offset
-			# x_neg = xm - x_offset
-
-			# deviation = half_width - x_pos
-			# print(f"turn could be {deviation/half_width}")
-			# deviation = half_width - x_neg
-			# print(f"turn could be {deviation/half_width}")
-
-			# if np.abs(half_width - x_pos) < np.abs(half_width - x_neg):
-			# 	deviation = half_width - x_pos
-			# 	#print(f"turn could be {deviation/half_width}")
-			# else:
-			# 	deviation = half_width - x_neg
-			# 	#print(f"turn could be {deviation/half_width}")
-			# print(f"Deviation {deviation}")
-			# turn2 = deviation / half_width
-
-			# turn = turn1*0.7 + turn2*0.3
-			# print(f"turn 1 = {turn1}, turn 2 = {turn2} and turn = {turn}")
-			speed = speed * (np.abs(math.cos(turn)) **(1/2))
+			
+			speed = speed * (np.abs(math.cos(turn))**(1/3))
+			#print("ONE (1) Vector formed")
+			#speed = 0.05
 
 		if (vectors.vector_count == 2):  # straight.
 			# Calculate the middle point of the x-components of the vectors.
@@ -206,46 +156,40 @@ class LineFollower(Node):
 			middle_x = (middle_x_left + middle_x_right) / 2
 
 			deviation = half_width - middle_x
-			turn = deviation / half_width
-		
-			turn = turn*0.8 + self.prevTurn*0.2
+			turn = deviation / half_width			
 
-			speed = speed * (math.cos(turn) **(1/2))
-			
+			#turn = turn*0.8 + self.prevTurn*0.2
+			speed = speed * (np.abs(math.cos(turn)) **(1/5))
+			#print("TWO (2) Vectors formed.")
+
+		#smoothening it put
+		#speed = speed*0.5 + self.prevSpeed*0.5
 
 		if (self.traffic_status.stop_sign is True):
-			#speed = SPEED_MIN
+			speed = SPEED_MIN
 			print("stop sign detected")
 
 		if self.ramp_detected is True:
 			# TODO: participants need to decide action on detection of ramp/bridge.
-			speed = 0.45
+			speed = 0.6
 			'''change it to reduce speed close to the ramp'''
 			print("ramp/bridge detected")
 
 		if self.obstacle_detected is True:
 			# TODO: participants need to decide action on detection of obstacle.
 			speed = SPEED_25_PERCENT
+			turn = -1*self.obsTurn*0.8+ turn*0.2
 			print("obstacle detected")
 
-		# need pose to get cross track error
-		# delta = 1*np.arctan2(self.k*crosstrack_error,(self.ks + speed)) + turn
-        
-		# if delta > np.pi:
-        #     delta = -1*delta + np.pi
-		#if speed > self.prevSpeed:
-
-		if self.prevSpeed < 0.6 and speed > 0.4 and self.ramp_detected is False:
-			speed = 0.995*self.prevSpeed + 0.005*speed
+		#While goind down/ after ramp to avoid bouncing of buggs
+		if self.prevSpeed < 0.7 and speed > 0.59 and self.ramp_detected is False:
+			#print("RAMP CASE ")
+			speed = 0.999*self.prevSpeed + 0.001*speed
 
 		self.prevSpeed = speed
 		self.prevTurn = turn
 		self.rover_move_manual_mode(speed, turn)
 
-		#COMMS
-		#msgTemp = Int16()
-		#msgTemp.data = int(speed*10)
-		#self.publisher_temp.publish(msgTemp)
 	""" Updates instance member with traffic status message received from /traffic_status.
 
 		Args:
@@ -281,10 +225,12 @@ class LineFollower(Node):
 		shield_horizontal = 1
 		theta = math.atan(shield_vertical / shield_horizontal)	#75.96
 
+		flag = False
+
 		# Get the middle half of the ranges array returned by the LIDAR.
 		length = float(len(message.ranges))
 		
-		#backMidRanges = message.ranges[int(length / 4): int(3 * length / 4)]
+		#backRanges = message.ranges[0:int(length / 4), int(3 * length / 4) : int(length)]
 		ranges = message.ranges[int(length / 4): int(3 * length / 4)]
 
 		# Separate the ranges into the part in the front and the part on the sides.
@@ -296,39 +242,56 @@ class LineFollower(Node):
 		
 		# process front ranges.
 		angle = theta - PI / 2
+		#angles = []
 		for i in range(len(front_ranges)):
 			if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
 				self.obstacle_detected = True
-				return
-
+				self.obsTurn = angle
+				#angles.append(angle)
+				flag = True
+				break
 			angle += message.angle_increment
+
+		#print(angles)
 
 		# process side ranges.
 		side_ranges_left.reverse()
 		for side_ranges in [side_ranges_left, side_ranges_right]:
-			angle = 0.0
+			angle2 = 0.0
 			for i in range(len(side_ranges)):
 				if (side_ranges[i] < THRESHOLD_OBSTACLE_HORIZONTAL):
 					self.obstacle_detected = True
-					return
+					self.obsTurn = angle
+					flag = True
+					break
+				angle2 += message.angle_increment
 
-				angle += message.angle_increment
+		#Considering both angles
+		if angle != 0 and angle2 != 0:
+			self.obs = angle*0.6 + angle2*0.4
 
+		if flag is True:
+			return
+		
 		self.obstacle_detected = False
 
 		# RAMP
 		angle = theta - PI / 2
-		for i in range(len(front_ranges)):
-			if (front_ranges[i] < THRESHOLD_RAMP_MAX and front_ranges[i] > THRESHOLD_RAMP_MIN):
+		l = len(front_ranges)
+		new_front_ranges = front_ranges[int(l/6):int(5*l/6)]
+		#for i in range(len(front_ranges[0:])):
+			#angle += message.angle_increment
+		for i in range(len(new_front_ranges)):
+			if (new_front_ranges[i] < THRESHOLD_RAMP_MAX and new_front_ranges[i] > THRESHOLD_RAMP_MIN):
 				self.ramp_detected = True
-				if front_ranges[i] < self.min:
-					self.min = front_ranges[i]
-				elif front_ranges[i] > self.max:
-					self.max = front_ranges[i]
-				print(f"Min - {self.min} and Max - {self.max} and  current {front_ranges[i]}")
+				# if new_front_ranges[i] < self.min:
+				# 	self.min = new_front_ranges[i]
+				# elif new_front_ranges[i] > self.max:
+				# 	self.max = new_front_ranges[i]
+				# print(f"Min - {self.min} and Max - {self.max} and  current {new_front_ranges[i]}")
 				return
 
-			angle += message.angle_increment
+			#angle += message.angle_increment
 
 		self.ramp_detected = False
 
