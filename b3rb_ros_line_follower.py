@@ -143,7 +143,7 @@ class LineFollower(Node):
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
 			turn = deviation * 2 / vectors.image_width
-			turn = self.prevTurn*0.9 + turn*0.1
+			turn = self.prevTurn*0.3 + turn*0.7
 			
 			speed = speed * (np.abs(math.cos(turn))**(1/3))
 			#print("ONE (1) Vector formed")
@@ -158,7 +158,7 @@ class LineFollower(Node):
 			deviation = half_width - middle_x
 			turn = deviation / half_width			
 
-			#turn = turn*0.8 + self.prevTurn*0.2
+			turn = turn*0.9 + self.prevTurn*0.1
 			speed = speed * (np.abs(math.cos(turn)) **(1/5))
 			#print("TWO (2) Vectors formed.")
 
@@ -182,7 +182,7 @@ class LineFollower(Node):
 			print("obstacle detected")
 
 		#While goind down/ after ramp to avoid bouncing of buggs
-		if self.prevSpeed < 0.7 and speed > 0.59 and self.ramp_detected is False:
+		if self.prevSpeed < 0.75 and speed > 0.59 and self.ramp_detected is False:
 			#print("RAMP CASE ")
 			speed = 0.999*self.prevSpeed + 0.001*speed
 
