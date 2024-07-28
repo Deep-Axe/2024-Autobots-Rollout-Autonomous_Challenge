@@ -35,7 +35,7 @@ SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
 THRESHOLD_OBSTACLE_VERTICAL = 0.25
 THRESHOLD_OBSTACLE_HORIZONTAL = 0.25
-THRESHOLD_RAMP_MIN = 0.73
+THRESHOLD_RAMP_MIN = 0.75
 THRESHOLD_RAMP_MAX = 1.2
 
 #Min - 0.6179950833320618 and Max - 0.9302666783332825
@@ -52,6 +52,7 @@ class LineFollower(Node):
 		self.status = [0, 0, 0]
 		self.prevSpeed, self.prevTurn = 0.75, 0
 		self.min, self.max = 10, 0
+		self.obs = 0
 
 		# Subscription to get Pose
 		self.subscription_pose = self.create_subscription(
@@ -157,8 +158,7 @@ class LineFollower(Node):
 
 			deviation = half_width - middle_x
 			turn = deviation / half_width			
-
-			turn = turn*0.9 + self.prevTurn*0.1
+			turn = turn*0.7 + self.prevTurn*0.3
 			speed = speed * (np.abs(math.cos(turn)) **(1/5))
 			#print("TWO (2) Vectors formed.")
 
@@ -178,7 +178,7 @@ class LineFollower(Node):
 		if self.obstacle_detected is True:
 			# TODO: participants need to decide action on detection of obstacle.
 			speed = SPEED_25_PERCENT
-			turn = -1*self.obsTurn*0.8+ turn*0.2
+			turn = -1*self.obs*0.95 + turn*0.05
 			print("obstacle detected")
 
 		#While goind down/ after ramp to avoid bouncing of buggs
@@ -225,7 +225,8 @@ class LineFollower(Node):
 		shield_horizontal = 1
 		theta = math.atan(shield_vertical / shield_horizontal)	#75.96
 
-		flag = False
+		flag1, flag2 = False, False
+		self.ramp_detected = False
 
 		# Get the middle half of the ranges array returned by the LIDAR.
 		length = float(len(message.ranges))
@@ -241,38 +242,69 @@ class LineFollower(Node):
 
 		
 		# process front ranges.
-		angle = theta - PI / 2
-		#angles = []
+		angle1 = theta - PI / 2
+		angles=[]
 		for i in range(len(front_ranges)):
 			if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
 				self.obstacle_detected = True
-				self.obsTurn = angle
+				#self.obsTurn = angle
 				#angles.append(angle)
-				flag = True
-				break
-			angle += message.angle_increment
+				flag1 = True
+			angles.append(angle1)
+			angle1 += message.angle_increment
+
+		if flag1 is True:
+			closestRange = min(front_ranges)
+			index = front_ranges.index(closestRange)
+			angle1p = angles[index]
+			angle1 = np.arctan(0.7/min(list(front_ranges)))
+			print(f"Meow - {angle1p} and meow {angle1}")
+			#self.obs = angle1
+			self.obs = angle1
+
+		#angle1 = 
 
 		#print(angles)
 
 		# process side ranges.
 		side_ranges_left.reverse()
+		angles = []
 		for side_ranges in [side_ranges_left, side_ranges_right]:
 			angle2 = 0.0
 			for i in range(len(side_ranges)):
+
 				if (side_ranges[i] < THRESHOLD_OBSTACLE_HORIZONTAL):
 					self.obstacle_detected = True
-					self.obsTurn = angle
-					flag = True
-					break
+					#self.obsTurn = 
+					flag2 = True
+				angles.append(angle2)
 				angle2 += message.angle_increment
 
-		#Considering both angles
-		if angle != 0 and angle2 != 0:
-			self.obs = angle*0.6 + angle2*0.4
+		if flag2 is True:
+			side_ranges_both = []
+			side_ranges_both.extend(side_ranges_left)
+			side_ranges_both.extend(side_ranges_right)
+			closestRangeSide = min(side_ranges_both)
+			index = side_ranges_both.index(closestRangeSide)
+			angle2p = angles[index]
+			angle2 = np.arctan(0.7/min(list(side_ranges_both)))
+			print(f"Meow - {angle2p} and meow {angle2}")
+			self.obs = angle2
 
-		if flag is True:
+		
+		#angleOfAvoidRight = np.arctan(10/min(list(side_ranges_right)))
+		#angleOfAvoidLeft = np.arctan(10/min(list(side_ranges_left)))
+		
+		#Considering both angles
+		#if angle != theta - PI / 2 and angle2 != 0:
+		#	self.obs = angle1*0.6 + angle2*0.4
+		if flag2 is True and flag1 is True:
+			self.obs = angle1*0.6 + angle2*0.4
 			return
 		
+		if flag1 is True or flag2 is True:
+			return
+
 		self.obstacle_detected = False
 
 		# RAMP
