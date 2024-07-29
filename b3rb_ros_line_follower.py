@@ -144,7 +144,7 @@ class LineFollower(Node):
 			# Calculate the magnitude of the x-component of the vector.
 			deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
 			turn = deviation * 2 / vectors.image_width
-			turn = self.prevTurn*0.2 + turn*0.8
+			#turn = self.prevTurn*0.2 + turn*0.8
 			
 			speed = speed * (np.abs(math.cos(turn))**(1/3))
 			#print("ONE (1) Vector formed")
@@ -159,7 +159,7 @@ class LineFollower(Node):
 			deviation = half_width - middle_x
 			turn = deviation / half_width
 			#print(f"t - {turn}, p - {self.prevTurn} and oni san {turn*0.7+self.prevTurn*0.3}")			
-			turn = turn*0.9 + self.prevTurn*0.1
+			#turn = turn*0.9 + self.prevTurn*0.1
 			speed = speed * (np.abs(math.cos(turn)) **(1/5))
 			#print("TWO (2) Vectors formed.")
 
@@ -226,7 +226,6 @@ class LineFollower(Node):
 		shield_horizontal = 1
 		theta = math.atan(shield_vertical / shield_horizontal)	#75.96
 
-		flag1, flag2 = False, False
 		self.ramp_detected = False
 
 		# Get the middle half of the ranges array returned by the LIDAR.
@@ -247,9 +246,9 @@ class LineFollower(Node):
 		for i in range(len(front_ranges)):
 			if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
 				self.obstacle_detected = True
-				angleAvoidance = angle
-				angleSafe = np.arctan(0.05/front_ranges[i])
-				self.obs = angleAvoidance + angleSafe*np.sign(angleAvoidance)
+				#angleAvoidance = angle
+				#angleSafe = np.arctan(0.05/front_ranges[i])
+				self.obs = angle#angleAvoidance + angleSafe*np.sign(angleAvoidance)
 				return
 
 			angle += message.angle_increment
@@ -261,9 +260,9 @@ class LineFollower(Node):
 			for i in range(len(side_ranges)):
 				if (side_ranges[i] < THRESHOLD_OBSTACLE_HORIZONTAL):
 					self.obstacle_detected = True
-					angleAvoidance = angle
-					angleSafe = np.arctan(0.05/front_ranges[i])
-					self.obs = angleAvoidance + angleSafe*np.sign(angleAvoidance)
+					#angleAvoidance = angle
+					#angleSafe = np.arctan(0.05/front_ranges[i])
+					self.obs = angle#angleAvoidance + angleSafe*np.sign(angleAvoidance)
 					return
 
 				angle += message.angle_increment
@@ -274,20 +273,12 @@ class LineFollower(Node):
 		angle = theta - PI / 2
 		l = len(front_ranges)
 		new_front_ranges = front_ranges[int(l/6):int(5*l/6)]
-		#for i in range(len(front_ranges[0:])):
-			#angle += message.angle_increment
+
 		for i in range(len(new_front_ranges)):
 			if (new_front_ranges[i] < THRESHOLD_RAMP_MAX and new_front_ranges[i] > THRESHOLD_RAMP_MIN):
 				self.ramp_detected = True
-				# if new_front_ranges[i] < self.min:
-				# 	self.min = new_front_ranges[i]
-				# elif new_front_ranges[i] > self.max:
-				# 	self.max = new_front_ranges[i]
-				# print(f"Min - {self.min} and Max - {self.max} and  current {new_front_ranges[i]}")
 				return
-
-			#angle += message.angle_increment
-
+			
 		self.ramp_detected = False
 
 	def pose_callback(self, Message):
