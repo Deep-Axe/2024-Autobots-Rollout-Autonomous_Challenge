@@ -28,7 +28,7 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 1.4
+SPEED_MAX = 1.25
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
@@ -157,7 +157,8 @@ class LineFollower(Node):
 			middle_x = (middle_x_left + middle_x_right) / 2
 
 			deviation = half_width - middle_x
-			turn = deviation / half_width			
+			turn = deviation / half_width
+			#print(f"t - {turn}, p - {self.prevTurn} and oni san {turn*0.7+self.prevTurn*0.3}")			
 			turn = turn*0.7 + self.prevTurn*0.3
 			speed = speed * (np.abs(math.cos(turn)) **(1/5))
 			#print("TWO (2) Vectors formed.")
@@ -256,10 +257,10 @@ class LineFollower(Node):
 		if flag1 is True:
 			closestRange = min(front_ranges)
 			index = front_ranges.index(closestRange)
-			angle1p = angles[index]
-			angle1 = np.arctan(0.7/min(list(front_ranges)))
-			print(f"Meow - {angle1p} and meow {angle1}")
-			#self.obs = angle1
+			angleAvoidance = angles[index]
+			angleSafe = np.arctan(0.1/min(list(front_ranges)))
+			print(f"Meow - {angleAvoidance} and meow {angleSafe} and lallal {min(list(front_ranges))}")
+			angle1 = angleAvoidance + angleSafe*np.abs(angleAvoidance)
 			self.obs = angle1
 
 		#angle1 = 
@@ -286,9 +287,10 @@ class LineFollower(Node):
 			side_ranges_both.extend(side_ranges_right)
 			closestRangeSide = min(side_ranges_both)
 			index = side_ranges_both.index(closestRangeSide)
-			angle2p = angles[index]
-			angle2 = np.arctan(0.7/min(list(side_ranges_both)))
-			print(f"Meow - {angle2p} and meow {angle2}")
+			angleAvoidance = angles[index]
+			angleSafe = np.arctan(0.1/min(list(side_ranges_both)))
+			print(f"Meow - {angleAvoidance} and meow {angleSafe}")
+			angle2 = angleAvoidance + angleSafe*np.abs(angleAvoidance)
 			self.obs = angle2
 
 		
@@ -299,6 +301,7 @@ class LineFollower(Node):
 		#if angle != theta - PI / 2 and angle2 != 0:
 		#	self.obs = angle1*0.6 + angle2*0.4
 		if flag2 is True and flag1 is True:
+			print("Both flag true condition.")
 			self.obs = angle1*0.6 + angle2*0.4
 			return
 		
