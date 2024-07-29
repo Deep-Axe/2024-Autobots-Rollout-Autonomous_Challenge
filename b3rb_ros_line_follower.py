@@ -127,12 +127,13 @@ class LineFollower(Node):
             middle_x_right = (vectors.vector_2[0].x + vectors.vector_2[1].x) / 2
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
-            turn = deviation / half_width
+            p_turn = deviation * 2 / half_width
             #print(f"t - {turn}, p - {self.prevTurn} and oni san {turn*0.7+self.prevTurn*0.3}")         
             #turn = turn*0.9 + self.prevTurn*0.1
             speed = speed * (np.abs(math.cos(turn)) **(1/5))
             #print("TWO (2) Vectors formed.")
-            
+        
+        #
         deviation_magnitude = abs(p_turn)
         kP = kP_base * (1 + deviation_magnitude)
         kD = kD_base * (1 + deviation_magnitude)
