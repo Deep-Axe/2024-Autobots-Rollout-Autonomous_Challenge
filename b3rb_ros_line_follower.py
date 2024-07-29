@@ -102,6 +102,11 @@ class LineFollower(Node):
         turn = TURN_MIN
         vectors = message
         half_width = vectors.image_width / 2
+        
+        p_turn = 0.0
+        kP_base = 0.8
+        kD_base = 0.2
+        
         # NOTE: participants may improve algorithm for line follower.
         if (vectors.vector_count == 0):  # none.
             speed = SPEED_50_PERCENT
@@ -110,8 +115,8 @@ class LineFollower(Node):
         if (vectors.vector_count == 1):  # curve.
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
-            turn = deviation * 2 / vectors.image_width
-            #turn = self.prevTurn*0.2 + turn*0.8
+            p_turn = deviation * 2 / vectors.image_width
+            #turn = self.prevTurn*0.2 + p_turn*0.8
             
             speed = speed * (np.abs(math.cos(turn))**(1/3))
             #print("ONE (1) Vector formed")
@@ -127,8 +132,14 @@ class LineFollower(Node):
             #turn = turn*0.9 + self.prevTurn*0.1
             speed = speed * (np.abs(math.cos(turn)) **(1/5))
             #print("TWO (2) Vectors formed.")
-        #smoothening it put
-        #speed = speed*0.5 + self.prevSpeed*0.5
+            
+        deviation_magnitude = abs(p_turn)
+        kP = kP_base * (1 + deviation_magnitude)
+        kD = kD_base * (1 + deviation_magnitude)
+        derivative_turn = (turn - self.prevTurn)
+
+        turn = kP * p_turn + kD * derivative_turn
+            
         if (self.traffic_status.stop_sign is True):
             speed = SPEED_MIN
             print("stop sign detected")
@@ -140,7 +151,7 @@ class LineFollower(Node):
         if self.obstacle_detected is True:
             # TODO: participants need to decide action on detection of obstacle.
             speed = SPEED_25_PERCENT
-            turn = 1*self.obs*0.95 + turn*0.05
+            turn = 0.95*self.obs + turn*0.05
             print("obstacle detected")
         #While goind down/ after ramp to avoid bouncing of buggs
         if self.prevSpeed < 0.7 and speed > 0.54:
@@ -195,7 +206,7 @@ class LineFollower(Node):
             if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
                 self.obstacle_detected = True
                 angleAvoidance = angle1
-                angleSafe = np.arctan(0.05/front_ranges[i])
+                angleSafe = np.arctan(1/front_ranges[i])
                 angle1 = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance)
                 self.obs = angle1
                 angles.append(angle1)
@@ -208,10 +219,10 @@ class LineFollower(Node):
             if (side_ranges_left[i] < THRESHOLD_OBSTACLE_HORIZONTAL):
                 self.obstacle_detected = True
                 angleAvoidance = angle2
-                angleSafe = np.arctan(0.05/side_ranges_left[i])
+                angleSafe = np.arctan(1/side_ranges_left[i])
                 angle2 = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance)
-                self.obs = angle2
-                angles.append(angle2)
+                self.obs = -1*angle2
+                angles.append(-1*angle2)
                 break
             angle2 += message.angle_increment
         # process side Right
@@ -220,7 +231,7 @@ class LineFollower(Node):
             if (side_ranges_right[i] < THRESHOLD_OBSTACLE_HORIZONTAL):
                 self.obstacle_detected = True
                 angleAvoidance = angle3
-                angleSafe = np.arctan(0.05/side_ranges_right[i])
+                angleSafe = np.arctan(1/side_ranges_right[i])
                 angle3 = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance)
                 self.obs = angle3
                 angles.append(angle3)
@@ -229,11 +240,15 @@ class LineFollower(Node):
         if len(angles) == 3:
             self.obs = np.dot(angles, [0.4,0.3,0.3])
             return
+        if len(angles) == 2 and angles[0] == angle1:
+            self.obs = np.dot(angles, [0.7,0.3])
+            return
         if len(angles) == 2:
             self.obs = np.dot(angles, [0.5,0.5])
             return
         if len(angles) == 1:
             return
+        
         self.obstacle_detected = False
         # RAMP
         angle = theta - PI / 2
@@ -245,6 +260,7 @@ class LineFollower(Node):
                 return
             
         self.ramp_detected = False
+        
     def pose_callback(self, Message):
         self.status = [Message.pose.pose.position.x, Message.pose.pose.position.y, 0]
         x = Message.pose.pose.orientation.x
@@ -255,6 +271,7 @@ class LineFollower(Node):
         t4 = +1.0 - 2.0 * (y * y + z * z)
         yaw_z = np.arctan2(t3, t4)
         self.status[2] = yaw_z
+        
 def main(args=None):
     rclpy.init(args=args)
     line_follower = LineFollower()
