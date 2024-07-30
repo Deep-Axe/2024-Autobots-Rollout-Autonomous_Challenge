@@ -12,7 +12,7 @@ QOS_PROFILE_DEFAULT = 10
 import os
 
 path = os.path.join(os.path.dirname(__file__),'cascade_stop_sign.xml')
-stop_sign_cascade = cv2.CascadeClassifier('cascade_stop_sign.xml')
+stop_sign_cascade = cv2.CascadeClassifier(path)
 
 class ObjectRecognizer(Node):
 	""" Initializes object recognizer node with the required publishers and subscriptions.

@@ -38,7 +38,8 @@ class LineFollower(Node):
     def __init__(self):
         super().__init__('line_follower')
         self.status = [0, 0, 0]
-        self.prevSpeed, self.prevTurn = 0.75, 0
+        self.prevSpeed, self.prevTurn = 0.75, 0.0
+        self.speed, self.turn = 0.0, 0.0
         self.min, self.max = 10, 0
         self.obs = 0
 
@@ -48,7 +49,7 @@ class LineFollower(Node):
 
         # Timer to process messages at a specific frequency (e.g., 10 Hz)
         #self.process_timer = self.create_timer(0.1, self.process_callback)
-
+        
         # Subscription to get Pose
         self.subscription_pose = self.create_subscription(
             PoseWithCovarianceStamped,
@@ -81,6 +82,7 @@ class LineFollower(Node):
         self.traffic_status = TrafficStatus()
         self.obstacle_detected = False
         self.ramp_detected = False
+        self.LoopSetter()
     """ Operates the rover in manual mode by publishing on /cerebri/in/joy.
         Args:
             speed: the speed of the car in float. Range = [-1.0, +1.0];
@@ -112,24 +114,23 @@ class LineFollower(Node):
         half_width = vectors.image_width / 2
         
         p_turn = 0.0
-        kP_base = 0.8
-        kD_base = 0.2
+        kP_base = 0.65
+        kD_base = 0.35
         
         # NOTE: participants may improve algorithm for line follower.
         if (vectors.vector_count == 0):  # none.
             speed = SPEED_50_PERCENT
             turn = self.prevTurn*0.95
             #print("ZERO (0) Vectors formed")
+
         if (vectors.vector_count == 1):  # curve.
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
             p_turn = deviation / half_width
-            #turn = self.prevTurn*0.2 + p_turn*0.8
-            speed = SPEED_50_PERCENT
             
-            #speed = speed * (np.abs(math.cos(turn))**(1/3))
+            speed = speed * (np.abs(math.cos(turn))**(1/2))
             #print("ONE (1) Vector formed")
-            #speed = 0.05
+
         if (vectors.vector_count == 2):  # straight.
             # Calculate the middle point of the x-components of the vectors.
             middle_x_left = (vectors.vector_1[0].x + vectors.vector_1[1].x) / 2
@@ -137,8 +138,6 @@ class LineFollower(Node):
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
             p_turn = deviation / half_width
-            #print(f"t - {turn}, p - {self.prevTurn} and oni san {turn*0.7+self.prevTurn*0.3}")         
-            #turn = turn*0.9 + self.prevTurn*0.1
             speed = speed * (np.abs(math.cos(turn)) **(1/5))
             #print("TWO (2) Vectors formed.")
         
@@ -155,22 +154,25 @@ class LineFollower(Node):
             print("stop sign detected")
         if self.ramp_detected is True:
             # TODO: participants need to decide action on detection of ramp/bridge.
-            speed = 0.5
+            speed = 0.55
             '''change it to reduce speed close to the ramp'''
-            #print("ramp/bridge detected")
+            print("ramp/bridge detected")
+        
+        if self.prevSpeed < 0.7 and speed > 0.54:
+            #print("RAMP CASE ")
+            speed = 0.995*self.prevSpeed + 0.005*speed
+        
         if self.obstacle_detected is True:
             # TODO: participants need to decide action on detection of obstacle.
             speed = SPEED_25_PERCENT
             turn = 0.95*self.obs + turn*0.05
-            #print("obstacle detected")
+            print("obstacle detected")
         #While goind down/ after ramp to avoid bouncing of buggs
-        if self.prevSpeed < 0.65 and speed > 0.48:
-            #print("RAMP CASE ")
-            speed = 0.999*self.prevSpeed + 0.001*speed
-        self.prevSpeed = speed
-        self.prevTurn = turn
-        self.rover_move_manual_mode(speed, turn)
         
+        
+        self.speed = speed
+        self.turn = turn
+
     """ Updates instance member with traffic status message received from /traffic_status.
         Args:
             message: "~/cognipilot/cranium/src/synapse_msgs/msg/TrafficStatus.msg"
@@ -272,8 +274,24 @@ class LineFollower(Node):
             
         self.ramp_detected = False
         
-    # def timer_callback(self):
-    #     pass
+    def MainLoop(self):
+        self.prevSpeed = self.speed
+        self.prevTurn = self.turn
+        self.rover_move_manual_mode(self.speed, self.turn)
+
+    def LoopSetter(self):
+        """
+        This function is called when the node is started. It runs the main loop at a fixed rate.
+        """
+        
+        timerPeriod = 1/30
+        
+        try:
+            self.timer = self.create_timer(timerPeriod, self.MainLoop)
+
+        except KeyboardInterrupt:
+            print("ROS Interrupt Exception")
+            exit(1)
     
     def pose_callback(self, Message):
         self.status = [Message.pose.pose.position.x, Message.pose.pose.position.y, 0]
