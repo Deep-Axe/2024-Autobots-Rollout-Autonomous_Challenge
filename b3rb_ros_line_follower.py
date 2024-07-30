@@ -26,8 +26,8 @@ SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 THRESHOLD_OBSTACLE_VERTICAL = 0.25
 THRESHOLD_OBSTACLE_HORIZONTAL = 0.25
-THRESHOLD_RAMP_MIN = 0.7
-THRESHOLD_RAMP_MAX = 1.2
+THRESHOLD_RAMP_MIN = 0.6
+THRESHOLD_RAMP_MAX = 1.3
 #Min - 0.6179950833320618 and Max - 0.9302666783332825
 #Min - 0.4310002624988556 and Max - 1.9826102256774902
 class LineFollower(Node):
@@ -41,6 +41,14 @@ class LineFollower(Node):
         self.prevSpeed, self.prevTurn = 0.75, 0
         self.min, self.max = 10, 0
         self.obs = 0
+
+        # Set a timer to run at a specific frequency (e.g., 10 Hz)
+        # self.timer_period = 1/30  # seconds (30 Hz)
+        # self.timer = self.create_timer(self.timer_period, self.timer_callback)
+
+        # Timer to process messages at a specific frequency (e.g., 10 Hz)
+        #self.process_timer = self.create_timer(0.1, self.process_callback)
+
         # Subscription to get Pose
         self.subscription_pose = self.create_subscription(
             PoseWithCovarianceStamped,
@@ -115,10 +123,11 @@ class LineFollower(Node):
         if (vectors.vector_count == 1):  # curve.
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
-            p_turn = deviation * 2 / vectors.image_width
+            p_turn = deviation / half_width
             #turn = self.prevTurn*0.2 + p_turn*0.8
+            speed = SPEED_50_PERCENT
             
-            speed = speed * (np.abs(math.cos(turn))**(1/3))
+            #speed = speed * (np.abs(math.cos(turn))**(1/3))
             #print("ONE (1) Vector formed")
             #speed = 0.05
         if (vectors.vector_count == 2):  # straight.
@@ -127,7 +136,7 @@ class LineFollower(Node):
             middle_x_right = (vectors.vector_2[0].x + vectors.vector_2[1].x) / 2
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
-            p_turn = deviation * 2 / half_width
+            p_turn = deviation / half_width
             #print(f"t - {turn}, p - {self.prevTurn} and oni san {turn*0.7+self.prevTurn*0.3}")         
             #turn = turn*0.9 + self.prevTurn*0.1
             speed = speed * (np.abs(math.cos(turn)) **(1/5))
@@ -146,21 +155,22 @@ class LineFollower(Node):
             print("stop sign detected")
         if self.ramp_detected is True:
             # TODO: participants need to decide action on detection of ramp/bridge.
-            speed = 0.55
+            speed = 0.5
             '''change it to reduce speed close to the ramp'''
-            print("ramp/bridge detected")
+            #print("ramp/bridge detected")
         if self.obstacle_detected is True:
             # TODO: participants need to decide action on detection of obstacle.
             speed = SPEED_25_PERCENT
             turn = 0.95*self.obs + turn*0.05
-            print("obstacle detected")
+            #print("obstacle detected")
         #While goind down/ after ramp to avoid bouncing of buggs
-        if self.prevSpeed < 0.7 and speed > 0.54:
+        if self.prevSpeed < 0.65 and speed > 0.48:
             #print("RAMP CASE ")
-            speed = 0.995*self.prevSpeed + 0.005*speed
+            speed = 0.999*self.prevSpeed + 0.001*speed
         self.prevSpeed = speed
         self.prevTurn = turn
         self.rover_move_manual_mode(speed, turn)
+        
     """ Updates instance member with traffic status message received from /traffic_status.
         Args:
             message: "~/cognipilot/cranium/src/synapse_msgs/msg/TrafficStatus.msg"
@@ -169,6 +179,7 @@ class LineFollower(Node):
     """
     def traffic_status_callback(self, message):
         self.traffic_status = message
+
     """ Analyzes LIDAR data received from /scan topic for detecting ramps/bridges & obstacles.
         Args:
             message: "docs.ros.org/en/melodic/api/sensor_msgs/html/msg/LaserScan.html"
@@ -252,7 +263,6 @@ class LineFollower(Node):
         
         self.obstacle_detected = False
         # RAMP
-        angle = theta - PI / 2
         l = len(front_ranges)
         new_front_ranges = front_ranges[int(l/6):int(5*l/6)]
         for i in range(len(new_front_ranges)):
@@ -262,6 +272,9 @@ class LineFollower(Node):
             
         self.ramp_detected = False
         
+    # def timer_callback(self):
+    #     pass
+    
     def pose_callback(self, Message):
         self.status = [Message.pose.pose.position.x, Message.pose.pose.position.y, 0]
         x = Message.pose.pose.orientation.x

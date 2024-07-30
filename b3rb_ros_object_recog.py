@@ -9,7 +9,10 @@ from sensor_msgs.msg import CompressedImage
 
 QOS_PROFILE_DEFAULT = 10
 
-# from std_msgs.msg import Int16
+import os
+
+path = os.path.join(os.path.dirname(__file__),'cascade_stop_sign.xml')
+stop_sign_cascade = cv2.CascadeClassifier('cascade_stop_sign.xml')
 
 class ObjectRecognizer(Node):
 	""" Initializes object recognizer node with the required publishers and subscriptions.
@@ -32,12 +35,6 @@ class ObjectRecognizer(Node):
 			TrafficStatus,
 			'/traffic_status',
 			QOS_PROFILE_DEFAULT)
-		
-		# TEMP PUBLISHER TO ANALYSE DATA
-		# self.publisher_temp = self.create_publisher(
-		# 	Int16,
-		# 	'/temp',
-		# 	QOS_PROFILE_DEFAULT)
 
 	""" Analyzes the image received from /camera/image_raw/compressed to detect traffic signs.
 		Publishes the existence of traffic signs in the image on the /traffic_status topic.
@@ -53,15 +50,28 @@ class ObjectRecognizer(Node):
 		np_arr = np.frombuffer(message.data, np.uint8)
 		image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-		# msgTemp = Int16()
-		# msgTemp.data = len(image[0][0]) #240 * 320
-		# self.publisher_temp.publish(msgTemp)
-
 		traffic_status_message = TrafficStatus()
+
+		#Detecting the sign
+		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+		stop_signs = []
+		
+		try:
+			stop_signs = stop_sign_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))			
+		except:
+			pass
+		
+		if len(stop_signs) > 0:
+			traffic_status_message.stop_sign = True
+		else:
+			traffic_status_message.stop_sign = False
+		print(stop_signs)
+		
 
 		# NOTE: participants need to implement logic for recognizing traffic signs.
 
-		self.publisher_traffic.publish(traffic_status_message)
+		self.publisher_traffic.publish(traffic_status_message)				
+		
 
 
 def main(args=None):
