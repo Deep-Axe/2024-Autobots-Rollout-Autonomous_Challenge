@@ -119,7 +119,9 @@ class LineFollower(Node):
         
         # NOTE: participants may improve algorithm for line follower.
         if (vectors.vector_count == 0):  # none.
-            speed = SPEED_50_PERCENT
+            speed = self.prevSpeed*0.9
+            if self.speed < 0.05:
+                speed = SPEED_MIN
             turn = self.prevTurn*0.95
             #print("ZERO (0) Vectors formed")
 
@@ -158,7 +160,7 @@ class LineFollower(Node):
             '''change it to reduce speed close to the ramp'''
             print("ramp/bridge detected")
         
-        if self.prevSpeed < 0.7 and speed > 0.54:
+        if self.prevSpeed < 0.7 and speed > 0.5:
             #print("RAMP CASE ")
             speed = 0.995*self.prevSpeed + 0.005*speed
         
