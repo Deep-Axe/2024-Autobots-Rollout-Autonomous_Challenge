@@ -12,7 +12,7 @@ QOS_PROFILE_DEFAULT = 10
 import os
 
 #path = os.path.join(os.path.dirname(__file__),'cascade_stop_sign.xml')
-#stop_sign_cascade = cv2.CascadeClassifier(path)
+stop_sign_cascade = cv2.CascadeClassifier('/home/gitaansh/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/cascade_stop_sign.xml')
 
 class ObjectRecognizer(Node):
 	""" Initializes object recognizer node with the required publishers and subscriptions.
@@ -52,22 +52,24 @@ class ObjectRecognizer(Node):
 
 		traffic_status_message = TrafficStatus()
 
-		#Detecting the sign
-		# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-		# stop_signs = []
+		# Detecting the sign
+		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 		
-		# try:
-		# 	stop_signs = stop_sign_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))			
-		# except:
-		# 	pass
-		
-		# if len(stop_signs) > 0:
-		# 	traffic_status_message.stop_sign = True
-		# else:
-		# 	traffic_status_message.stop_sign = False
-		# print(stop_signs)
-		
+		success, image = cv2.imencode('.jpg', image)
 
+		stop_signs = []
+		
+		try:
+			stop_signs = stop_sign_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))			
+		except:
+			pass
+		
+		if len(stop_signs) > 0:
+			traffic_status_message.stop_sign = True
+		else:
+			traffic_status_message.stop_sign = False
+		
+		
 		# NOTE: participants need to implement logic for recognizing traffic signs.
 
 		self.publisher_traffic.publish(traffic_status_message)				
