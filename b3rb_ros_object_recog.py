@@ -5,14 +5,20 @@ from synapse_msgs.msg import TrafficStatus
 import cv2
 import numpy as np
 
+
 from sensor_msgs.msg import CompressedImage
 
 QOS_PROFILE_DEFAULT = 10
 
-import os
+#Custom
+from ultralytics import YOLO
+import logging
 
-#path = os.path.join(os.path.dirname(__file__),'cascade_stop_sign.xml')
-stop_sign_cascade = cv2.CascadeClassifier('/home/gitaansh/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/cascade_stop_sign.xml')
+logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
+
+#path = os.path.join(os.path.dirname(__file__),'best(1).pt')
+path = '/home/gitaansh/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/best(3).pt'
+model = YOLO(path)
 
 class ObjectRecognizer(Node):
 	""" Initializes object recognizer node with the required publishers and subscriptions.
@@ -50,30 +56,24 @@ class ObjectRecognizer(Node):
 		np_arr = np.frombuffer(message.data, np.uint8)
 		image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-		traffic_status_message = TrafficStatus()
+		traffic_status = TrafficStatus()
+		
+		results = model.predict(source=image, imgsz=640, conf=0.25)
+		for result in results:
+			if result.boxes:  
+				if result.boxes.conf.tolist()[0] > 0.96:
+					print(result.boxes.conf.tolist()[0])
+					traffic_status.stop_sign = True
+				else:
+					traffic_status.stop_sign = False
 
-		# Detecting the sign
-		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 		
-		success, image = cv2.imencode('.jpg', image)
+		self.publisher_traffic.publish(traffic_status)
 
-		stop_signs = []
-		
-		try:
-			stop_signs = stop_sign_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))			
-		except:
-			pass
-		
-		if len(stop_signs) > 0:
-			traffic_status_message.stop_sign = True
-		else:
-			traffic_status_message.stop_sign = False
-		
-		
-		# NOTE: participants need to implement logic for recognizing traffic signs.
-
-		self.publisher_traffic.publish(traffic_status_message)				
-		
+'''        # For visualization purposes (optional)
+        for (x, y, w, h) in stop_signs:
+            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(image, 'Stop Sign', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)'''
 
 
 def main(args=None):
