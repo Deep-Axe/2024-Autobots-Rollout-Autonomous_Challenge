@@ -112,7 +112,7 @@ class LineFollower(Node):
         if (vectors.vector_count == 1):  # curve.
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
-            p_turn = deviation * 2 / vectors.image_width
+            p_turn = deviation  / half_width
             speed = SPEED_75_PERCENT * (np.abs(math.cos(turn))**(1/2))
             #speed = speed * (np.abs(math.cos(turn))**(1/2))
             #print("ONE (1) Vector formed")
@@ -123,7 +123,7 @@ class LineFollower(Node):
             middle_x_right = (vectors.vector_2[0].x + vectors.vector_2[1].x) / 2
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
-            p_turn = deviation * 2 / half_width
+            p_turn = deviation  / half_width
             speed = speed * (np.abs(math.cos(turn))**(1/4))
             #speed = SPEED_MAX
             #print("TWO (2) Vectors formed.")
@@ -300,11 +300,11 @@ class LineFollower(Node):
         elif len(angles) == 2:
             print('2 sides')
             if close[0] < close[1]:
-                angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_right[i])
-                self.obs = np.dot(angles, [0.9, 1]) + np.abs(angleSafe)*np.sign(angleAvoidance)
-            else:
                 angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_left[i])
-                self.obs = np.dot(angles, [1, 0.9]) + np.abs(angleSafe)*np.sign(angleAvoidance)
+                self.obs = np.dot(angles, [1,1]) + np.abs(angleSafe)*np.sign(angleAvoidance)
+            else:
+                angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_right[i])
+                self.obs = np.dot(angles, [1,1]) + np.abs(angleSafe)*np.sign(angleAvoidance)
             return
         if len(angles) == 1:
             print('1')
