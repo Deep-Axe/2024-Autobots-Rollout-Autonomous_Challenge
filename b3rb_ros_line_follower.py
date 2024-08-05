@@ -31,7 +31,7 @@ THRESHOLD_OBSTACLE_HORIZONTAL = 0.35
 THRESHOLD_RAMP_MIN = 0.9 #0.7
 THRESHOLD_RAMP_MAX = 1.1
 
-SAFE_DISTANCE = 0.3
+SAFE_DISTANCE = 0.25
 SAFE_DISTANCE_STRAIGHT = 0.25
 #Min - 0.6179950833320618 and Max - 0.9302666783332825
 #Min - 0.4310002624988556 and Max - 1.9826102256774902
@@ -46,6 +46,13 @@ class LineFollower(Node):
         self.min, self.max = 10, 0
         self.obs = 0
         self.speed, self.turn = 0.0, 0.0
+
+        # Subscription for LIDAR data.
+        self.subscription_lidar = self.create_subscription(
+            LaserScan,
+            '/scan',
+            self.lidar_callback,
+            QOS_PROFILE_DEFAULT)
 
         self.subscription_vectors = self.create_subscription(
             EdgeVectors,
@@ -63,16 +70,10 @@ class LineFollower(Node):
             '/traffic_status',
             self.traffic_status_callback,
             QOS_PROFILE_DEFAULT)
-        # Subscription for LIDAR data.
-        self.subscription_lidar = self.create_subscription(
-            LaserScan,
-            '/scan',
-            self.lidar_callback,
-            QOS_PROFILE_DEFAULT)
+        
         self.traffic_status = TrafficStatus()
         self.obstacle_detected = False
         self.ramp_detected = False
-        self.LoopSetter()
     """ Operates the rover in manual mode by publishing on /cerebri/in/joy.
         Args:
             speed: the speed of the car in float. Range = [-1.0, +1.0];
@@ -109,11 +110,17 @@ class LineFollower(Node):
         
         # NOTE: participants may improve algorithm for line follower.
         
+        if (vectors.vector_count == 0):  # none.
+            speed = SPEED_25_PERCENT
+
+            p_turn = self.prevTurn*0.9
+
+
         if (vectors.vector_count == 1):  # curve.
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
             p_turn = deviation  / half_width
-            speed = SPEED_75_PERCENT * (np.abs(math.cos(turn))**(1/2))
+            speed = SPEED_75_PERCENT * (np.abs(math.cos(p_turn))**(1/2))
             #speed = speed * (np.abs(math.cos(turn))**(1/2))
             #print("ONE (1) Vector formed")
 
@@ -124,9 +131,14 @@ class LineFollower(Node):
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
             p_turn = deviation  / half_width
-            speed = speed * (np.abs(math.cos(turn))**(1/4))
+            speed = speed * (np.abs(math.cos(p_turn))**(1/4))
             #speed = SPEED_MAX
             #print("TWO (2) Vectors formed.")
+
+        if self.obstacle_detected is True and vectors.vector_count != 0:
+            # TODO: participants need to decide action on detection of obstacle.
+            speed = SPEED_50_PERCENT*0.55
+            p_turn = -0.95*self.obs + p_turn*0.05
         
         deviation_magnitude = abs(p_turn)
         kP = kP_base * (1 + deviation_magnitude)
@@ -135,10 +147,7 @@ class LineFollower(Node):
 
         turn = kP * p_turn + kD * derivative_turn
 
-        if (vectors.vector_count == 0):  # none.
-            speed = SPEED_25_PERCENT
-
-            turn = self.prevTurn*0.9
+        
             #print("ZERO (0) Vectors formed")
 
         if self.ramp_detected is True:
@@ -150,10 +159,7 @@ class LineFollower(Node):
         if self.prevSpeed < 0.75 and speed > 0.54 and self.obstacle_detected is False:
             speed = 0.995*self.prevSpeed + 0.005*speed
 
-        if self.obstacle_detected is True and vectors.vector_count != 0:
-            # TODO: participants need to decide action on detection of obstacle.
-            speed = SPEED_50_PERCENT*0.55
-            turn = -0.95*self.obs + turn*0.05
+        
             #print("obstacle detected") 
         #While goind down/ after ramp to avoid bouncing of buggs
         
@@ -164,8 +170,10 @@ class LineFollower(Node):
                 speed = SPEED_MIN
             print("stop sign detected")
         
-        self.speed = speed
-        self.turn = turn
+        self.prevSpeed = speed
+        self.prevTurn = turn
+        print(f"Turn : {turn} and speed : {speed}")
+        self.rover_move_manual_mode(speed, turn)
     """ Updates instance member with traffic status message received from /traffic_status.
         Args:
             message: "~/cognipilot/cranium/src/synapse_msgs/msg/TrafficStatus.msg"
@@ -209,42 +217,46 @@ class LineFollower(Node):
         # process front ranges.
         angleFront = theta - PI / 2
         for i in range(len(front_ranges)):
-            #
             if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
                 #print("FRONT",min(front_ranges))
                 self.obstacle_detected = True
                 angleAvoidance = angleFront
                 angleSafe = np.arctan(SAFE_DISTANCE_STRAIGHT/front_ranges[i])
-                angleFront = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance) 
+                angleFront = angleAvoidance #+ np.abs(angleSafe)*np.sign(angleAvoidance) 
                 '''+ np.abs(angleSafe)'''
-                self.obs = angleFront
-                angles.append(angleFront)
+                #self.obs = angleFront
+                #angles.append(angleFront)
                 print('Front')
+                print(angleFront)
                 break
             angleFront += message.angle_increment
 
         
-        # angleFront2 = theta - PI / 2# - theta
-        # front_ranges.reverse()
-        # for i in range(len(front_ranges)):
-        #     #
-        #     if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
-        #         #print("FRONT",min(front_ranges))
-        #         self.obstacle_detected = True
-        #         angleAvoidance = angleFront2
-        #         angleSafe = np.arctan(SAFE_DISTANCE_STRAIGHT/front_ranges[i])
-        #         angleFront2 = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance) 
-        #         #print(angle1, angle12)
-        #         #angle one always has the opp sign as angle 12
-        #         angleFront = (angleFront - angleFront2)/2
-        #         self.obs = angleFront
-        #         #print(angle1)
+        angleFront2 = PI / 2 - theta
+        front_ranges.reverse()
+        for i in range(len(front_ranges)):
+            if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
+                self.obstacle_detected = True
+                #angleAvoidance = angleFront2
+                #angleSafe = np.arctan(SAFE_DISTANCE_STRAIGHT/front_ranges[i])
+                #angleFront2 = angleAvoidance #+ np.abs(angleSafe)*np.sign(angleAvoidance) 
+                print(angleFront2)
+                if angleFront*angleFront2>0:
+                    if angleFront > 0:
+                        angleFront = min(angleFront, angleFront2)
+                        #angleFront = (PI/2 - theta) - angleFront
+                    else:
+                        angleFront = max(angleFront, angleFront2)
+                        #angleFront = -(PI/2 - theta) + angleFront
+                else:
+                    angleFront += angleFront2
+                angleFront += + np.abs(angleSafe)*np.sign(angleFront)
+                print(angleFront)
+                self.obs = angleFront
+                angles.append(angleFront)
+                break
+            angleFront2 -= message.angle_increment
 
-        #         '''+ np.abs(angleSafe)'''
-        #         # self.obs = angle12
-        #         angles.append(angleFront)
-        #         break
-        #     angleFront2 += message.angle_increment
 
         close = []
         # process side Left
@@ -256,12 +268,13 @@ class LineFollower(Node):
                 self.obstacle_detected = True
                 angleAvoidance = angleLeft
                 angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_left[i])
-                angleLeft = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance)
+                angleLeft = angleAvoidance + np.abs(angleSafe)*np.sign(angleLeft)
                 angleLeft = theta - angleLeft
                 self.obs = angleLeft
                 angles.append(angleLeft)
                 close.append(side_ranges_left[i])
                 print('Left')
+                print(angleLeft)
                 break
             angleLeft += message.angle_increment
         
@@ -274,38 +287,51 @@ class LineFollower(Node):
                 self.obstacle_detected = True
                 angleAvoidance = angleRight
                 angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_right[i])
-                angleRight = angleAvoidance + np.abs(angleSafe)*np.sign(angleAvoidance)
+                angleRight = angleAvoidance + np.abs(angleSafe)*np.sign(angleRight)
                 angleRight = - theta + angleRight
                 self.obs = angleRight
                 angles.append(angleRight)
                 close.append(side_ranges_right[i])
                 print('Right')
+                print(angleRight)
                 break
             angleRight += message.angle_increment
         
         if len(angles) == 3:
             print('3')
             if close[0] < close[1]:
-                angle = 0.9*angles[1] + angles[2]
+                angle = angles[1] + 0.9*angles[2]
             else:
-                angle = angles[1] + angles[2]*0.9
-            self.obs = angles[0]*0.5 + angle*0.5
+                angle = 0.9*angles[1] + angles[2]
+
+            if angle*angles[0]>0:
+                self.obs = angles[0] + angle
+            else:
+                self.obs = angles[0] + angle
+            print(f"Final {self.obs}")
             return
         
         if len(angles) == 2 and angles[0] == angleFront:
-            print('2 w front')
-            self.obs = np.dot(angles, [1,1])
+            print('side w front')
+            if angles[0]*angles[1]>0:
+                self.obs = np.dot(angles, [1,1])
+            else:
+                self.obs = angles[0] + angles[1]
+            print(f"Final {self.obs}")
             return
         
         elif len(angles) == 2:
             print('2 sides')
             if close[0] < close[1]:
-                angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_left[i])
-                self.obs = np.dot(angles, [1,1]) + np.abs(angleSafe)*np.sign(angleAvoidance)
+                angleSafe = np.arctan(SAFE_DISTANCE/close[0])
+                self.obs = np.dot(angles, [1,0.9])
+                self.obs += np.abs(angleSafe)*np.sign(self.obs)
             else:
-                angleSafe = np.arctan(SAFE_DISTANCE/side_ranges_right[i])
-                self.obs = np.dot(angles, [1,1]) + np.abs(angleSafe)*np.sign(angleAvoidance)
-            return
+                angleSafe = np.arctan(SAFE_DISTANCE/close[1])
+                self.obs = np.dot(angles, [0.9, 1]) 
+                self.obs += np.abs(angleSafe)*np.sign(angleAvoidance)
+            print(f"Final {self.obs}")
+        
         if len(angles) == 1:
             print('1')
             return
@@ -318,27 +344,7 @@ class LineFollower(Node):
                 return
             
         self.ramp_detected = False
-        
-        
-    def MainLoop(self):
-        self.prevSpeed = self.speed
-        self.prevTurn = self.turn
-        self.rover_move_manual_mode(self.speed, self.turn)
 
-    def LoopSetter(self):
-        """
-        This function is called when the node is started. It runs the main loop at a fixed rate.
-        """
-        
-        timerPeriod = 1/30
-        
-        try:
-            self.timer = self.create_timer(timerPeriod, self.MainLoop)
-
-        except KeyboardInterrupt:
-            print("ROS Interrupt Exception")
-            
-            exit(1)
 
 def main(args=None):
     rclpy.init(args=args)
