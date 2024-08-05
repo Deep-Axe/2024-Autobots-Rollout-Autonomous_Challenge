@@ -26,8 +26,8 @@ SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
-THRESHOLD_OBSTACLE_VERTICAL = 0.55
-THRESHOLD_OBSTACLE_HORIZONTAL = 0.35
+THRESHOLD_OBSTACLE_VERTICAL = 0.75
+THRESHOLD_OBSTACLE_HORIZONTAL = 0.4
 THRESHOLD_RAMP_MIN = 0.9 #0.7
 THRESHOLD_RAMP_MAX = 1.1
 
@@ -105,8 +105,8 @@ class LineFollower(Node):
         half_width = vectors.image_width / 2
         
         p_turn = 0.0
-        kP_base = 0.65
-        kD_base = 0.35
+        kP_base = 0.75
+        kD_base = 0.4
         
         # NOTE: participants may improve algorithm for line follower.
         
@@ -139,15 +139,40 @@ class LineFollower(Node):
             # TODO: participants need to decide action on detection of obstacle.
             speed = SPEED_50_PERCENT*0.55
             p_turn = -0.95*self.obs + p_turn*0.05
-        
+            # if self.closest >= 0.6:
+            # # Maintain cruising speed
+            #     speed = SPEED_50_PERCENT
+            # elif self.closest <= 0.2:
+            #     # Reduce to baseline velocity
+            #     SPEED_25_PERCENT
+            # else:
+            #     # Linear interpolation between cruise speed and baseline speed
+            #     speed = SPEED_25_PERCENT*0.8 + (SPEED_50_PERCENT - SPEED_25_PERCENT) * \
+            #             ((self.closest - 0.2) / (0.6 - 0.2))
+            '''
+            if distance_to_obstacle >= self.d_max:
+            # Maintain cruising speed
+            return self.v_cruise
+            elif distance_to_obstacle <= self.d_min:
+                # Reduce to baseline velocity
+                return self.v_baseline
+            else:
+                # Linear interpolation between cruise speed and baseline speed
+                velocity = self.v_baseline + (self.v_cruise - self.v_baseline) * \
+                        ((distance_to_obstacle - self.d_min) / (self.d_max - self.d_min))
+                return velocity
+            '''
+
         deviation_magnitude = abs(p_turn)
         kP = kP_base * (1 + deviation_magnitude)
         kD = kD_base * (1 + deviation_magnitude)
         derivative_turn = (turn - self.prevTurn)
 
         turn = kP * p_turn + kD * derivative_turn
-
         
+        #make it less sensitive - can define new variables to make it look clean
+        #speed = (kP) * speed + kD * (speed - self.prevSpeed)
+        #speed = abs(speed)
             #print("ZERO (0) Vectors formed")
 
         if self.ramp_detected is True:
@@ -202,7 +227,10 @@ class LineFollower(Node):
         shield_horizontal = 1
         theta = math.atan(shield_vertical / shield_horizontal)  #75.96
         self.ramp_detected = False
+
         angles = []
+        self.closest = 2
+        
         # Get the middle half of the ranges array returned by the LIDAR.
         length = float(len(message.ranges))
         
@@ -228,6 +256,8 @@ class LineFollower(Node):
                 #angles.append(angleFront)
                 print('Front')
                 print(angleFront)
+                if self.closest > front_ranges[i]:
+                    self.closest = front_ranges[i]
                 break
             angleFront += message.angle_increment
 
@@ -254,6 +284,8 @@ class LineFollower(Node):
                 print(angleFront)
                 self.obs = angleFront
                 angles.append(angleFront)
+                if self.closest > front_ranges[i]:
+                    self.closest = front_ranges[i]
                 break
             angleFront2 -= message.angle_increment
 
@@ -275,6 +307,8 @@ class LineFollower(Node):
                 close.append(side_ranges_left[i])
                 print('Left')
                 print(angleLeft)
+                if self.closest > side_ranges_left[i]:
+                    self.closest = side_ranges_left[i]
                 break
             angleLeft += message.angle_increment
         
@@ -294,6 +328,8 @@ class LineFollower(Node):
                 close.append(side_ranges_right[i])
                 print('Right')
                 print(angleRight)
+                if self.closest > side_ranges_right[i]:
+                    self.closest = side_ranges_right[i]
                 break
             angleRight += message.angle_increment
         
