@@ -273,10 +273,12 @@ class LineFollower(Node):
                 print(angleFront2)
                 if angleFront*angleFront2>0:
                     if angleFront > 0:
-                        angleFront = min(angleFront, angleFront2)
+                        angleFront = angleFront2
+                        #angleFront = min(angleFront, angleFront2)
                         #angleFront = (PI/2 - theta) - angleFront
                     else:
-                        angleFront = max(angleFront, angleFront2)
+                        angleFront = angleFront
+                        #angleFront = max(angleFront, angleFront2)
                         #angleFront = -(PI/2 - theta) + angleFront
                 else:
                     angleFront += angleFront2
