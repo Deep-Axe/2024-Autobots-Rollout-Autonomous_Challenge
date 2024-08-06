@@ -21,7 +21,7 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 1.75
+SPEED_MAX = 1.5
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
@@ -186,11 +186,11 @@ class LineFollower(Node):
         #While goind down/ after ramp to avoid bouncing of buggs
         
         if (self.traffic_status.stop_sign is True):
-            speed = self.prevSpeed*0.9
-            turn = turn*0.7
-            if self.prevSpeed < 0.2:
-                speed = SPEED_MIN
-            print("stop sign detected")
+            #speed = self.prevSpeed*0.9
+            #turn = turn*0.7
+            #if self.prevSpeed < 0.2:
+            speed = SPEED_MIN
+            #print("stop sign detected")
         
         self.prevSpeed = speed
         self.prevTurn = turn
