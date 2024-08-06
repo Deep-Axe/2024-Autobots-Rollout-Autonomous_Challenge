@@ -21,7 +21,7 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 1.4
+SPEED_MAX = 1.75
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
@@ -32,9 +32,8 @@ THRESHOLD_RAMP_MIN = 0.9 #0.7
 THRESHOLD_RAMP_MAX = 1.1
 
 SAFE_DISTANCE = 0.25
-SAFE_DISTANCE_STRAIGHT = 0.25
-#Min - 0.6179950833320618 and Max - 0.9302666783332825
-#Min - 0.4310002624988556 and Max - 1.9826102256774902
+SAFE_DISTANCE_STRAIGHT = 1.2
+
 class LineFollower(Node):
     """ Initializes line follower node with the required publishers and subscriptions.
         Returns:
@@ -105,8 +104,8 @@ class LineFollower(Node):
         half_width = vectors.image_width / 2
         
         p_turn = 0.0
-        kP_base = 0.75
-        kD_base = 0.4
+        kP_base = 0.7
+        kD_base = 0.45
         
         # NOTE: participants may improve algorithm for line follower.
         
@@ -164,12 +163,12 @@ class LineFollower(Node):
             '''
 
         deviation_magnitude = abs(p_turn)
-        kP = kP_base * (1 + deviation_magnitude)
+        kP = kP_base * ( + deviation_magnitude)
         kD = kD_base * (1 + deviation_magnitude)
         derivative_turn = (turn - self.prevTurn)
 
         turn = kP * p_turn + kD * derivative_turn
-        
+        turn = p_turn        
         #make it less sensitive - can define new variables to make it look clean
         #speed = (kP) * speed + kD * (speed - self.prevSpeed)
         #speed = abs(speed)
@@ -178,8 +177,6 @@ class LineFollower(Node):
         if self.ramp_detected is True:
             # TODO: participants need to decide action on detection of ramp/bridge.
             speed = 0.55
-            '''change it to reduce speed close to the ramp'''
-            print("ramp/bridge detected")
 
         if self.prevSpeed < 0.75 and speed > 0.54 and self.obstacle_detected is False:
             speed = 0.995*self.prevSpeed + 0.005*speed
@@ -212,14 +209,6 @@ class LineFollower(Node):
             message: "docs.ros.org/en/melodic/api/sensor_msgs/html/msg/LaserScan.html"
         Returns:
             None
-        range_1=message.ranges
-        #range_difference =  [range_1[i+1] - range_1[i] for i in range(len(range_1) - 1)]
-        
-        #Can also be for obsracles -> need to differentiate between them smhow
-        for distance in range_1:
-            if distance < 2:
-                self.ramp_detected = True
-                break
     """
     def lidar_callback(self, message):
         # TODO: participants need to implement logic for detection of ramps and obstacles.
@@ -267,21 +256,14 @@ class LineFollower(Node):
         for i in range(len(front_ranges)):
             if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
                 self.obstacle_detected = True
-                #angleAvoidance = angleFront2
-                #angleSafe = np.arctan(SAFE_DISTANCE_STRAIGHT/front_ranges[i])
-                #angleFront2 = angleAvoidance #+ np.abs(angleSafe)*np.sign(angleAvoidance) 
                 print(angleFront2)
                 if angleFront*angleFront2>0:
                     if angleFront > 0:
                         angleFront = angleFront2
-                        #angleFront = min(angleFront, angleFront2)
-                        #angleFront = (PI/2 - theta) - angleFront
                     else:
                         angleFront = angleFront
-                        #angleFront = max(angleFront, angleFront2)
-                        #angleFront = -(PI/2 - theta) + angleFront
                 else:
-                    angleFront += angleFront2
+                    angleFront += (angleFront2*0.9)
                 angleFront += + np.abs(angleSafe)*np.sign(angleFront)
                 print(angleFront)
                 self.obs = angleFront
@@ -293,7 +275,6 @@ class LineFollower(Node):
 
 
         close = []
-        # process side Left
         #side_ranges_left.reverse()
         angleLeft = 0.0
         for i in range(len(side_ranges_left)):
