@@ -61,14 +61,22 @@ class ObjectRecognizer(Node):
 		results = model.predict(source=image, imgsz=640, conf=0.25)
 		for result in results:
 			if result.boxes:  
-				p = 100*(result.boxes.xywh[0][2]*result.boxes.xywh[0][3])/(result.boxes.orig_shape[0]*result.boxes.orig_shape[1])
-				if result.boxes.conf.tolist()[0] > 0.96 and p>3.8:
+				#p = 100*(result.boxes.xywh[0][2]*result.boxes.xywh[0][3])/(result.boxes.orig_shape[0]*result.boxes.orig_shape[1])
+				boxes = result.boxes.xyxy.cpu().numpy()
+				#confs = result.boxes.conf.cpu().numpy()
+				#classes = result.boxes.cls.cpu().numpy()
 
+				#for box, conf, cls in zip(boxes, confs, classes):
+				areas = []
+				for box in boxes:
+					x1, y1, x2, y2 = map(int, box)
+					width = x2 - x1
+					height = y2 - y1
+					areas.append(width*height)
+				print(areas)
+				if result.boxes.conf.tolist()[0] > 0.95 and max(areas) > 400:
 					#print(result.boxes.conf.tolist()[0])
 					traffic_status.stop_sign = True
-				else:
-					traffic_status.stop_sign = False
-
 		
 		self.publisher_traffic.publish(traffic_status)
 
