@@ -20,13 +20,13 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 2.0
+SPEED_MAX = 2.1
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
-THRESHOLD_OBSTACLE_VERTICAL = 0.75
-THRESHOLD_OBSTACLE_HORIZONTAL = 0.4
+THRESHOLD_OBSTACLE_VERTICAL = 0.8
+THRESHOLD_OBSTACLE_HORIZONTAL = 0.45
 THRESHOLD_RAMP_MIN = 0.9 #0.7
 THRESHOLD_RAMP_MAX = 1.1
 
@@ -120,11 +120,7 @@ class LineFollower(Node):
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
             p_turn = deviation  / half_width
-            speed = SPEED_50_PERCENT * 0.8 * (np.abs(math.cos(p_turn))**(1/2))
-            
-
-            #speed = speed * (np.abs(math.cos(turn))**(1/2))
-            #print("ONE (1) Vector formed")
+            speed = SPEED_50_PERCENT * 0.9 * (np.abs(math.cos(p_turn))**(1/2))
 
         if (vectors.vector_count == 2):  # straight.
             # Calculate the middle point of the x-components of the vectors.
@@ -133,7 +129,7 @@ class LineFollower(Node):
             middle_x = (middle_x_left + middle_x_right) / 2
             deviation = half_width - middle_x
             p_turn = deviation  / half_width
-            speed = speed * (np.abs(math.cos(p_turn))**(1/3))
+            speed = 2.3 * (np.abs(math.cos(p_turn))**(1/3))
             #speed = SPEED_MAX
             #print("TWO (2) Vectors formed.")
 
