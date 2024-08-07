@@ -16,7 +16,7 @@ import logging
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 
-path = os.path.join(os.path.dirname(__file__),'best(3).pt')
+path = os.path.join(os.path.dirname(__file__),'best(1).pt')
 
 #path = '/home/marblecake/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/best(3).pt'
 model = YOLO(path)
