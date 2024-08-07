@@ -104,8 +104,10 @@ class LineFollower(Node):
         half_width = vectors.image_width / 2
         
         p_turn = 0.0
-        kP_base = 0.75
-        kD_base = 0.45
+        kP_base = 0.65
+        kD_base = 0.35
+        apply_pid = True
+        
         
         # NOTE: participants may improve algorithm for line follower.
         
@@ -113,6 +115,7 @@ class LineFollower(Node):
             speed = 0.4
 
             p_turn = self.prevTurn*0.9
+            
 
 
         if (vectors.vector_count == 1):  # curve.
@@ -120,6 +123,8 @@ class LineFollower(Node):
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
             p_turn = deviation  / half_width
             speed = SPEED_50_PERCENT * 0.8 * (np.abs(math.cos(p_turn))**(1/2))
+            
+
             #speed = speed * (np.abs(math.cos(turn))**(1/2))
             #print("ONE (1) Vector formed")
 
@@ -138,37 +143,18 @@ class LineFollower(Node):
             # TODO: participants need to decide action on detection of obstacle.
             speed = 0.45
             p_turn = -0.95*self.obs + p_turn*0.05
-            # if self.closest >= 0.6:
-            # # Maintain cruising speed
-            #     speed = SPEED_50_PERCENT
-            # elif self.closest <= 0.2:
-            #     # Reduce to baseline velocity
-            #     SPEED_25_PERCENT
-            # else:
-            #     # Linear interpolation between cruise speed and baseline speed
-            #     speed = SPEED_25_PERCENT*0.8 + (SPEED_50_PERCENT - SPEED_25_PERCENT) * \
-            #             ((self.closest - 0.2) / (0.6 - 0.2))
-            '''
-            if distance_to_obstacle >= self.d_max:
-            # Maintain cruising speed
-            return self.v_cruise
-            elif distance_to_obstacle <= self.d_min:
-                # Reduce to baseline velocity
-                return self.v_baseline
-            else:
-                # Linear interpolation between cruise speed and baseline speed
-                velocity = self.v_baseline + (self.v_cruise - self.v_baseline) * \
-                        ((distance_to_obstacle - self.d_min) / (self.d_max - self.d_min))
-                return velocity
-            '''
+            apply_pid = False
+            
+            
+        if apply_pid:
+            deviation_magnitude = abs(p_turn)
+            kP = kP_base * ( 0.9 + deviation_magnitude)
+            kD = kD_base * ( 0.5 + deviation_magnitude)
+            derivative_turn = (turn - self.prevTurn)
 
-        deviation_magnitude = abs(p_turn)
-        kP = kP_base * ( + deviation_magnitude)
-        kD = kD_base * (1 + deviation_magnitude)
-        derivative_turn = (turn - self.prevTurn)
-
-        turn = kP * p_turn + kD * derivative_turn
-        turn = p_turn        
+            turn = kP * p_turn + kD * derivative_turn
+        else:
+            turn = p_turn        
 
         if self.ramp_detected is True:
             # TODO: participants need to decide action on detection of ramp/bridge.
@@ -179,10 +165,10 @@ class LineFollower(Node):
         #While goind down/ after ramp to avoid bouncing of buggs
         
         if (self.traffic_status.stop_sign is True):
-            #speed = self.prevSpeed*0.9
+            speed = self.prevSpeed*0.9
             #turn = turn*0.7
-            #if self.prevSpeed < 0.2:
-            speed = SPEED_MIN
+            if speed < 0.2:
+                speed = SPEED_MIN
             #print("stop sign detected")
         
         self.prevSpeed = speed
