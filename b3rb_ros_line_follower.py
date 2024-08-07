@@ -21,18 +21,18 @@ RIGHT_TURN = -1.0
 TURN_MIN = 0.0
 TURN_MAX = 1.0
 SPEED_MIN = 0.0
-SPEED_MAX = 2.0
+SPEED_MAX = 2.15
 SPEED_25_PERCENT = SPEED_MAX / 4
 SPEED_50_PERCENT = SPEED_25_PERCENT * 2
 SPEED_75_PERCENT = SPEED_25_PERCENT * 3
 
-THRESHOLD_OBSTACLE_VERTICAL = 0.75
-THRESHOLD_OBSTACLE_HORIZONTAL = 0.4
+THRESHOLD_OBSTACLE_VERTICAL = 0.8
+THRESHOLD_OBSTACLE_HORIZONTAL = 0.425
 THRESHOLD_RAMP_MIN = 0.9 #0.7
 THRESHOLD_RAMP_MAX = 1.1
 
-SAFE_DISTANCE = 0.25
-SAFE_DISTANCE_STRAIGHT = 1.2
+SAFE_DISTANCE = 0.2
+SAFE_DISTANCE_STRAIGHT = 1.0 #0.5
 
 class LineFollower(Node):
     """ Initializes line follower node with the required publishers and subscriptions.
@@ -73,6 +73,8 @@ class LineFollower(Node):
         self.traffic_status = TrafficStatus()
         self.obstacle_detected = False
         self.ramp_detected = False
+        self.collided = False
+
     """ Operates the rover in manual mode by publishing on /cerebri/in/joy.
         Args:
             speed: the speed of the car in float. Range = [-1.0, +1.0];
@@ -108,6 +110,14 @@ class LineFollower(Node):
         kD_base = 0.35
         apply_pid = True
         
+        if (self.traffic_status.stop_sign is True):
+            speed = self.prevSpeed*0.95
+            #turn = turn*0.7
+            if speed < 0.15:
+                speed = SPEED_MIN
+                self.rover_move_manual_mode(speed, turn)
+                return
+            #print("stop sign detected")
         
         # NOTE: participants may improve algorithm for line follower.
         
@@ -122,7 +132,7 @@ class LineFollower(Node):
             # Calculate the magnitude of the x-component of the vector.
             deviation = vectors.vector_1[1].x - vectors.vector_1[0].x
             p_turn = deviation  / half_width
-            speed = SPEED_50_PERCENT * 0.8 * (np.abs(math.cos(p_turn))**(1/2))
+            speed = SPEED_75_PERCENT * 0.775 * (np.abs(math.cos(p_turn)))
             
 
             #speed = speed * (np.abs(math.cos(turn))**(1/2))
@@ -141,11 +151,16 @@ class LineFollower(Node):
 
         if self.obstacle_detected is True:
             # TODO: participants need to decide action on detection of obstacle.
-            speed = 0.45
+            #speed = 0.45
             p_turn = -0.95*self.obs + p_turn*0.05
+            speed = SPEED_50_PERCENT * (np.abs(math.cos(p_turn))**(1/2))
             apply_pid = False
             
-            
+        if self.collided is True:
+            p_turn = self.prevTurn*1.7
+            speed = -0.5
+            apply_pid = False
+
         if apply_pid:
             deviation_magnitude = abs(p_turn)
             kP = kP_base * ( 0.9 + deviation_magnitude)
@@ -160,21 +175,18 @@ class LineFollower(Node):
             # TODO: participants need to decide action on detection of ramp/bridge.
             speed = 0.55
 
-        if self.prevSpeed < 0.8 and speed > 0.54 and self.obstacle_detected is False:
-            speed = 0.995*self.prevSpeed + 0.005*speed
+        if self.prevSpeed < 0.925 and speed > 0.54 and self.obstacle_detected is False:
+            speed = 0.997*self.prevSpeed + 0.003*speed
         #While goind down/ after ramp to avoid bouncing of buggs
         
-        if (self.traffic_status.stop_sign is True):
-            speed = self.prevSpeed*0.9
-            #turn = turn*0.7
-            if speed < 0.2:
-                speed = SPEED_MIN
-            #print("stop sign detected")
-        
+        if self.prevSpeed < 0 and speed > 0:
+            speed = self.prevSpeed + speed*0.15
+
         self.prevSpeed = speed
         self.prevTurn = turn
         #print(f"Turn : {turn} and speed : {speed}")
         self.rover_move_manual_mode(speed, turn)
+
     """ Updates instance member with traffic status message received from /traffic_status.
         Args:
             message: "~/cognipilot/cranium/src/synapse_msgs/msg/TrafficStatus.msg"
@@ -210,6 +222,14 @@ class LineFollower(Node):
         side_ranges_right = ranges[0: int(length * theta / PI)]
         side_ranges_left = ranges[int(length * (PI - theta) / PI):]
         
+        # Check collisions 
+        if min(front_ranges) < 0.175:
+            '''or min(side_ranges_left) < 0.145 or min (side_ranges_right) < 0.145'''
+            self.collided = True
+            return
+
+        self.collided = False
+
         # process front ranges.
         angleFront = theta - PI / 2
         for i in range(len(front_ranges)):
@@ -223,14 +243,12 @@ class LineFollower(Node):
                     self.closest = front_ranges[i]
                 break
             angleFront += message.angle_increment
-
         
         angleFront2 = PI / 2 - theta
         front_ranges.reverse()
         for i in range(len(front_ranges)):
             if (front_ranges[i] < THRESHOLD_OBSTACLE_VERTICAL):
                 self.obstacle_detected = True
-                print(angleFront2)
                 if angleFront*angleFront2>0:
                     if angleFront > 0:
                         angleFront = angleFront2
@@ -240,7 +258,6 @@ class LineFollower(Node):
                 else:
                     angleFront += (angleFront2*0.9)
                 angleFront += np.abs(angleSafe)*np.sign(angleFront)
-                print(angleFront)
                 self.obs = angleFront
                 angles.append(angleFront)
                 if self.closest > front_ranges[i]:
@@ -262,8 +279,6 @@ class LineFollower(Node):
                 self.obs = angleLeft
                 angles.append(angleLeft)
                 close.append(side_ranges_left[i])
-                print('Left')
-                print(angleLeft)
                 if self.closest > side_ranges_left[i]:
                     self.closest = side_ranges_left[i]
                 break
@@ -282,8 +297,6 @@ class LineFollower(Node):
                 self.obs = angleRight
                 angles.append(angleRight)
                 close.append(side_ranges_right[i])
-                print('Right')
-                print(angleRight)
                 if self.closest > side_ranges_right[i]:
                     self.closest = side_ranges_right[i]
                 break
@@ -300,7 +313,7 @@ class LineFollower(Node):
                 self.obs = angles[0] + angle
             else:
                 self.obs = angles[0] + angle
-            print(f"Final {self.obs}")
+
             return
         
         if len(angles) == 2 and angles[0] == angleFront:
@@ -309,23 +322,21 @@ class LineFollower(Node):
                 self.obs = np.dot(angles, [1,1])
             else:
                 self.obs = angles[0] + angles[1]
-            print(f"Final {self.obs}")
             return
         
         elif len(angles) == 2:
-            print('2 sides')
+
             if close[0] < close[1]:
-                angleSafe = np.arctan(SAFE_DISTANCE/close[0])
+                angleSafe = np.arctan(0.05/close[0])
                 self.obs = np.dot(angles, [1,0.9])
                 self.obs += np.abs(angleSafe)*np.sign(self.obs)
             else:
-                angleSafe = np.arctan(SAFE_DISTANCE/close[1])
+                angleSafe = np.arctan(0.05/close[1])
                 self.obs = np.dot(angles, [0.9, 1]) 
                 self.obs += np.abs(angleSafe)*np.sign(self.obs)
-            print(f"Final {self.obs}")
+
         
         if len(angles) == 1:
-            print('1')
             return
         
         self.obstacle_detected = False
