@@ -105,7 +105,7 @@ class LineFollower(Node):
         vectors = message
         half_width = vectors.image_width / 2
         
-        p_turn = 0.0
+        p_turn = 0.02
         kP_base = 0.65
         kD_base = 0.35
         apply_pid = True
