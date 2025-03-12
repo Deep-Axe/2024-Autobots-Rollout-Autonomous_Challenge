@@ -26,3 +26,12 @@ Refer to the official NXP AIM India Simulator GitBook for installation and setup
 Note: Ensure the simulator is configured to work with ROS 2 Humble.
 ## Limitations
 Real-Time Factor (RTF): The code was tested at an RTF of 0.4 - 0.6, which may cause unstable behavior.
+
+## Videos
+
+### Without Obstacles  
+[![Without Obstacles](https://img.shields.io/badge/Watch%20Video-Click%20Here-blue)](b3rb_without_obstacles.mp4)  
+
+### With Obstacles  
+[![With Obstacles](https://img.shields.io/badge/Watch%20Video-Click%20Here-blue)](B3RB_With_Obstacles.mp4)  
+
