@@ -30,8 +30,12 @@ Real-Time Factor (RTF): The code was tested at an RTF of 0.4 - 0.6, which may ca
 ## Videos
 
 ### Without Obstacles  
-[![Without Obstacles](https://img.shields.io/badge/Watch%20Video-Click%20Here-blue)](b3rb_without_obstacles.mp4)  
+
+https://github.com/user-attachments/assets/2b4913b2-b72a-4def-8b55-bb770378dd63
+
+
 
 ### With Obstacles  
-[![With Obstacles](https://img.shields.io/badge/Watch%20Video-Click%20Here-blue)](B3RB_With_Obstacles.mp4)  
+
+https://github.com/user-attachments/assets/c9af156d-26a6-45d1-8ed0-9ad88110d05d
 
