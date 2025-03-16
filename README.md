@@ -11,7 +11,7 @@ Handles path tracking and obstacle avoidance by processing camera and sensor dat
 b3rb_ros_object_recog
 Performs stop sign recognition and handles image callbacks for other modules.
 
-Yolov8Model1.py
+Yolov8Model1.pt
 Contains the YOLOv8 model weights used for stop sign detection.
 
 obstacle_config.json
